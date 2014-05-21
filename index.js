@@ -1,24 +1,23 @@
 var _ = require('lodash');
 
-module.exports = function (routeTable, page) {
+module.exports = function (routeTable, routeManager) {
     if (!routeTable) {
         throw new Error('pagejs adapter: routeTable required!');
     }
-    if (!page) {
-        throw new Error('pagejs adapter: page.js instance required!');
+    if (!routeManager) {
+        throw new Error('pagejs adapter: routeManager instance required!');
     }
     if (!_.isArray(routeTable)) {
         throw new Error('pagejs adapter: routeTable must be array!');
     }
     _.each(routeTable, function (route) {
-        addRoute(route, page);
+        addRoute(route, routeManager);
     });
 }
 
-function addRoute(route, page, parentPattern) {
+function addRoute(route, routeManager, parentName) {
     if (_.isUndefined(route.method)) route.method = 'get';
     if (route.method !== 'get') return;
-    parentPattern = parentPattern || '';
 
     if (!route.pattern) {
         throw new Error('pagejs adapter addRoute(): route.pattern required!', route);
@@ -31,15 +30,19 @@ function addRoute(route, page, parentPattern) {
         route.handlers = [route.handlers];
     }
 
-    route.pattern = parentPattern + route.pattern;
+    var routeArguments = [{
+            name: route.name,
+            re: route.pattern,
+            parent: parentName ? routeManager.getRoute(parentName) : null
+        }, route.handlers];
 
-    page.apply(page, [route.pattern].concat(route.handlers));
-
-    parentPattern = route.pattern;
+    routeManager.add.apply(routeManager, routeArguments);
 
     if (_.isArray(route.routes)) {
-        _.each(route.routes, function (route) {
-            addRoute(route, page, parentPattern);
+        _.each(route.routes, function (r) {
+            addRoute(r, routeManager, route.name);
         });
     }
+
 }
+
